@@ -3,6 +3,8 @@ import sys
 import logging
 import tempfile
 import subprocess
+from datetime import datetime
+from mozprocess import ProcessHandler
 
 from bisect_b2g.util import run_cmd
 
@@ -105,3 +107,81 @@ class InteractiveEvaluator(Evaluator):
                 "the interactive prompt")
         log.debug("Interactive evaluator returned %d", code)
         return rv
+
+class InteractiveBuildEvaluator(InteractiveEvaluator):
+    def __init__(self, build_info=None, stdin_file=sys.stdin):
+        InteractiveEvaluator.__init__(self)
+        self.stdin_file = stdin_file
+        self.build_number = 0
+        self.log_open = False
+        if not build_info:
+            self.build_info['workdir'] = os.getcwd()
+            self.build_info['env'] = os.environ()
+            self.build_info['logdir'] = os.getcwd()
+        else:
+            self.build_info = build_info
+            if self.build_info['env']:
+                edict = {}
+                elist = self.build_info['env'].split(',')
+                for p in elist:
+                    edict[p.split('=')[0]] = p.split('=')[1]
+                self.build_info['env'] = edict
+
+    def perform_build(self, history_line):
+        import pdb
+        pdb.set_trace()
+        self.build_number += 1
+        self.start_time = datetime.now()
+        log.debug("Performing build %d on history line: %s" % (self.build_number, history_line))
+        build_proc = ProcessHandler(cmd = ['/home/ctalbert/projects/b2g-hamachi/build.sh'],
+                                    cwd = self.build_info['workdir'],
+                                    env=self.build_info['env'],
+                                    processOutputLine=[self.notify_status],
+                                    kill_on_timeout=True,
+                                    onTimeout=[self.notify_timeout],
+                                    onFinish=[self.notify_finished],
+                                    shell=True)
+
+        try:
+            sys.stdout.write("Starting Build %d:" % self.build_number)
+            build_proc.run(timeout=7200)
+            build_proc.processOutput()
+            exitcode = build_proc.wait()
+        except (KeyboardInterrupt, SystemExit):
+            print "User Canceled Operation!"
+            log.debug("Build canceled by user")
+            raise
+        finally:
+            self.build_log.close()
+
+        if exitcode == 0:
+            print "Build %d Completed Successfully" % self.build_number
+            log.debug("Build %d for history line: %s completed successfully" % (self.build_number, history_line))
+        else:
+            print "Build %d Failed" % self.build_number
+            log.debug("Build %d for history line: %s FAILED" % (self.build_number, history_line))
+
+    def notify_status(self, line):
+        if not self.log_open:
+            #TODO: need path to include history_lines somehow
+            if not os.path.exists(self.build_info['logdir']):
+                os.makedirs(self.build_info['logdir'])
+            logfile = os.path.join(self.build_info['logdir'], ('build_%d.log' % self.build_number))
+            self.build_log = open(logfile, "w")
+            self.log_open = True
+        if int((datetime.now() - self.start_time).total_seconds()) % 10 == 0:
+            sys.stdout.write('.')
+        self.build_log.write(line + '\n')
+
+    def notify_timeout(self):
+        if self.log_open:
+            self.build_log.write("BUILD TIMED OUT\n")
+        print "Build Timed Out"
+        self.log.debug("Build Timed Out")
+
+    def notify_finished(self):
+        print "Build %d Finished!" % self.build_number
+
+    def eval(self, history_line):
+        self.perform_build(history_line)
+        InteractiveEvaluator.eval(self, history_line)

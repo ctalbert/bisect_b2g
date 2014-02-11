@@ -11,7 +11,7 @@ import bisect_b2g
 from bisect_b2g.repository import Project
 from bisect_b2g.bisection import Bisection
 from bisect_b2g.history import build_history
-from bisect_b2g.evaluator import ScriptEvaluator, InteractiveEvaluator
+from bisect_b2g.evaluator import ScriptEvaluator, InteractiveEvaluator, InteractiveBuildEvaluator
 
 
 class InvalidArg(Exception):
@@ -173,9 +173,17 @@ def main():
     parser.add_option("-i", "--interactive", help="Interactively determine " +
                       "if the changeset is good",
                       dest="interactive", action="store_true")
+    parser.add_option("-b", "--builds", help="Perform builds while evaluating",
+                    dest="do_builds", action="store_true")
     parser.add_option("-v", "--verbose", help="Logfile verbosity",
                       action="store_true", dest="verbose")
     parser.add_option("--profile-output", dest="prof_out", default=None)
+    parser.add_option("--build-workdir", help="Set working directory for building",
+                      dest="build_workdir", default=None)
+    parser.add_option("--build-logdir", help="Set logfile directory for build logs",
+                      dest="build_logdir", default=None)
+    parser.add_option("--build-env", help="Key Value pairs to construct env vars for build "+
+                      "environment in this form: key=value,key=value", dest="build_env", default=None)
     opts, args = parser.parse_args()
 
     # Set up logging
@@ -200,8 +208,21 @@ def main():
         log.error("You can't specify a script *and* interactive mode")
         parser.print_help()
         parser.exit(2)
+    elif opts.script and opts.do_builds:
+        log.error("Building with script evaluator not implemented yet")
+        parser.print_help()
+        parser.exit(2)
     elif opts.script:
         evaluator = ScriptEvaluator(opts.script)
+    elif opts.interactive and opts.do_builds:
+        build_info = {'workdir': None, 'logdir': None, 'env': None}
+        if opts.build_workdir:
+            build_info['workdir'] = opts.build_workdir
+        if opts.build_logdir:
+            build_info['logdir'] = opts.build_logdir
+        if opts.build_env:
+            build_info['env'] = opts.build_env
+        evaluator = InteractiveBuildEvaluator(build_info)
     else:
         evaluator = InteractiveEvaluator()
 
