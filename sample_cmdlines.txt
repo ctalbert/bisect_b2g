@@ -1,0 +1,3 @@
+bisect -i -v GIT/home/ctalbert/projects/b2g-hamachi/gaia@5ff51693b1e870b3d044c991535c277dc8193651..3405c205cfb5625073b9db1e12ed5d173bdcc78c GIT/home/ctalbert/projects/b2g-hamachi/gecko@09ca6137270e164cdbeb39062ac3ae5bddf52f9c..cb4d125ec7ff615cc5899e960fca82d5468a077f
+
+bisect -i -b --build-workdir=/home/ctalbert/projects/b2g-hamachi --build-logdir=buildlogs --build-env=BRANCH=v1.3,CC=gcc-4.6,CXX=g++-4.6 -v GIT/home/ctalbert/projects/b2g-hamachi/gaia@5ff51693b1e870b3d044c991535c277dc8193651..3405c205cfb5625073b9db1e12ed5d173bdcc78c GIT/home/ctalbert/projects/b2g-hamachi/gecko@09ca6137270e164cdbeb39062ac3ae5bddf52f9c..cb4d125ec7ff615cc5899e960fca82d5468a077f
